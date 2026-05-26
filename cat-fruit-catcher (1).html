@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐱 Cat Fruit Catcher</title>
+<style>
+  /* ===== FONTS & RESET ===== */
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sky1: #1a1a2e;
+    --sky2: #16213e;
+    --sky3: #0f3460;
+    --accent: #e94560;
+    --gold: #ffd700;
+    --green: #4ecdc4;
+    --purple: #a855f7;
+    --pink: #ec4899;
+    --panel-bg: rgba(255,255,255,0.07);
+    --panel-border: rgba(255,255,255,0.15);
+    --radius: 20px;
+    --font-head: 'Fredoka One', cursive;
+    --font-body: 'Nunito', sans-serif;
+  }
+
+  body {
+    background: var(--sky1);
+    font-family: var(--font-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ===== STARS BACKGROUND ===== */
+  #stars-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== MAIN WRAPPER ===== */
+  #app {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: min(480px, 100vw);
+    padding: 0 8px;
+  }
+
+  /* ===== HUD ===== */
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 8px 14px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(10px);
+  }
+  .hud-block { text-align: center; }
+  .hud-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.5);
+  }
+  .hud-value {
+    font-family: var(--font-head);
+    font-size: 22px;
+    color: #fff;
+    line-height: 1;
+  }
+  .hud-value.gold { color: var(--gold); text-shadow: 0 0 12px var(--gold); }
+  .hud-value.green { color: var(--green); }
+  .hud-value.red { color: var(--accent); }
+
+  #pause-btn {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    color: #fff;
+    padding: 6px 14px;
+    font-family: var(--font-head);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+  #pause-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.05); }
+
+  /* ===== GAME CANVAS AREA ===== */
+  #game-wrap {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(180deg, #0d1b4b 0%, #0a2744 40%, #0d3b2a 100%);
+    border-radius: var(--radius);
+    border: 2px solid var(--panel-border);
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(78,205,196,0.15), 0 0 120px rgba(168,85,247,0.1);
+  }
+
+  #game-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* ===== OVERLAY SCREENS ===== */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,15,40,0.88);
+    backdrop-filter: blur(8px);
+    border-radius: calc(var(--radius) - 2px);
+    transition: opacity .3s;
+    gap: 18px;
+    padding: 30px 24px;
+    z-index: 10;
+  }
+  .screen.hidden { opacity: 0; pointer-events: none; }
+
+  .screen-title {
+    font-family: var(--font-head);
+    font-size: 48px;
+    color: #fff;
+    text-shadow: 0 0 30px var(--green), 0 4px 0 rgba(0,0,0,0.4);
+    text-align: center;
+    line-height: 1.1;
+    animation: titlePop 0.6s cubic-bezier(.34,1.56,.64,1);
+  }
+  .screen-subtitle {
+    font-size: 15px;
+    color: rgba(255,255,255,0.65);
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.6;
+  }
+
+  .btn {
+    font-family: var(--font-head);
+    font-size: 20px;
+    padding: 14px 48px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--green), #38b2ac);
+    color: #0a2a28;
+    box-shadow: 0 6px 24px rgba(78,205,196,0.45);
+  }
+  .btn-primary:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 10px 32px rgba(78,205,196,0.6); }
+  .btn-danger {
+    background: linear-gradient(135deg, var(--accent), #c2185b);
+    color: #fff;
+    box-shadow: 0 6px 24px rgba(233,69,96,0.45);
+  }
+  .btn-danger:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 10px 32px rgba(233,69,96,0.6); }
+
+  .stat-row {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+  }
+  .stat-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 12px 24px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .stat-card .label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 4px;
+  }
+  .stat-card .value {
+    font-family: var(--font-head);
+    font-size: 28px;
+    color: #fff;
+  }
+  .stat-card .value.gold { color: var(--gold); text-shadow: 0 0 14px var(--gold); }
+  .stat-card .value.green { color: var(--green); }
+
+  #countdown-display {
+    font-family: var(--font-head);
+    font-size: 90px;
+    color: var(--gold);
+    text-shadow: 0 0 40px var(--gold);
+    animation: countPop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  .lives-display { display: flex; gap: 6px; font-size: 22px; }
+
+  .instructions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    max-width: 300px;
+  }
+  .inst-item {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ===== LEVEL UP BANNER ===== */
+  #level-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 20px;
+    padding: 16px 36px;
+    font-family: var(--font-head);
+    font-size: 28px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    box-shadow: 0 0 40px rgba(168,85,247,0.6);
+    z-index: 8;
+    pointer-events: none;
+    white-space: nowrap;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+    opacity: 0;
+  }
+  #level-banner.show { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+
+  /* ===== CATCH PARTICLES ===== */
+  .catch-pop {
+    position: absolute;
+    pointer-events: none;
+    font-size: 20px;
+    font-family: var(--font-head);
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 10px var(--gold);
+    animation: catchFloat 0.8s ease-out forwards;
+    z-index: 9;
+  }
+  @keyframes catchFloat {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-60px) scale(1.4); opacity: 0; }
+  }
+
+  /* ===== SHAKE ===== */
+  @keyframes shake {
+    0%,100%{transform:translateX(0)}
+    20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}
+    60%{transform:translateX(-6px)}
+    80%{transform:translateX(6px)}
+  }
+  .shaking { animation: shake .4s ease; }
+
+  /* ===== TITLE POP ===== */
+  @keyframes titlePop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes countPop {
+    0% { transform: scale(0.3); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ===== MOBILE CONTROLS ===== */
+  #mobile-controls {
+    display: none;
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .m-btn {
+    flex: 1;
+    padding: 18px;
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: var(--radius);
+    color: #fff;
+    font-size: 28px;
+    cursor: pointer;
+    active:opacity:.7;
+    transition: background .1s, transform .1s;
+    backdrop-filter: blur(8px);
+    text-align: center;
+  }
+  .m-btn:active { background: rgba(255,255,255,0.2); transform: scale(0.95); }
+
+  @media (max-width: 520px) {
+    #mobile-controls { display: flex; }
+    .screen-title { font-size: 36px; }
+    .btn { font-size: 17px; padding: 12px 36px; }
+  }
+
+  /* ===== PAUSE OVERLAY TEXT ===== */
+  #pause-text {
+    font-family: var(--font-head);
+    font-size: 42px;
+    color: #fff;
+    text-shadow: 0 0 30px var(--purple);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars-canvas"></canvas>
+
+<div id="app">
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-block">
+      <div class="hud-label">Score</div>
+      <div class="hud-value gold" id="hud-score">0</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">Level</div>
+      <div class="hud-value green" id="hud-level">1</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">Missed</div>
+      <div class="hud-value red" id="hud-missed">0/3</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">Best</div>
+      <div class="hud-value gold" id="hud-best">0</div>
+    </div>
+    <button id="pause-btn">⏸ Pause</button>
+  </div>
+
+  <!-- GAME AREA -->
+  <div id="game-wrap">
+    <canvas id="game-canvas" width="460" height="560"></canvas>
+
+    <!-- START SCREEN -->
+    <div class="screen" id="screen-start">
+      <div class="screen-title">🐱 Cat Fruit<br>Catcher</div>
+      <div class="lives-display">🍎 🍌 🍊 🍓 🍇</div>
+      <div class="instructions-grid">
+        <div class="inst-item">⬅️➡️ Move cat</div>
+        <div class="inst-item">🧺 Catch fruits</div>
+        <div class="inst-item">☠️ Avoid rotten</div>
+        <div class="inst-item">❤️ 3 lives max</div>
+      </div>
+      <button class="btn btn-primary" id="start-btn">▶ Start Game</button>
+      <div class="screen-subtitle">Catch fruits to score! Miss 3 and it's game over. Watch out for rotten fruits! 🦇</div>
+    </div>
+
+    <!-- COUNTDOWN SCREEN -->
+    <div class="screen hidden" id="screen-countdown">
+      <div class="screen-subtitle">Get Ready!</div>
+      <div id="countdown-display">3</div>
+    </div>
+
+    <!-- PAUSE SCREEN -->
+    <div class="screen hidden" id="screen-pause">
+      <div id="pause-text">⏸ Paused</div>
+      <div class="screen-subtitle">Take a breather, the fruits are waiting…</div>
+      <button class="btn btn-primary" id="resume-btn">▶ Resume</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div class="screen hidden" id="screen-gameover">
+      <div class="screen-title" style="color:var(--accent);text-shadow:0 0 30px var(--accent)">Game Over!</div>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="label">Score</div>
+          <div class="value green" id="go-score">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Best</div>
+          <div class="value gold" id="go-best">0</div>
+        </div>
+      </div>
+      <div class="stat-card" style="width:100%;max-width:280px">
+        <div class="label">Fruits Caught</div>
+        <div class="value" id="go-caught">0</div>
+      </div>
+      <button class="btn btn-danger" id="restart-btn">↺ Play Again</button>
+    </div>
+
+    <!-- LEVEL UP BANNER -->
+    <div id="level-banner">🎉 Level Up!</div>
+  </div>
+
+  <!-- MOBILE CONTROLS -->
+  <div id="mobile-controls">
+    <div class="m-btn" id="m-left">◀</div>
+    <div class="m-btn" id="m-right">▶</div>
+  </div>
+</div>
+
+<script>
+/* ===================================================
+   CAT FRUIT CATCHER — Complete Game Script
+   =================================================== */
+
+// ── DOM refs ──────────────────────────────────────
+const canvas      = document.getElementById('game-canvas');
+const ctx         = canvas.getContext('2d');
+const gameWrap    = document.getElementById('game-wrap');
+const starsCanvas = document.getElementById('stars-canvas');
+const sCtx        = starsCanvas.getContext('2d');
+
+const screens = {
+  start:     document.getElementById('screen-start'),
+  countdown: document.getElementById('screen-countdown'),
+  pause:     document.getElementById('screen-pause'),
+  gameover:  document.getElementById('screen-gameover'),
+};
+const hudScore   = document.getElementById('hud-score');
+const hudLevel   = document.getElementById('hud-level');
+const hudMissed  = document.getElementById('hud-missed');
+const hudBest    = document.getElementById('hud-best');
+const levelBanner = document.getElementById('level-banner');
+const countdownEl = document.getElementById('countdown-display');
+
+// ── Canvas dimensions ─────────────────────────────
+const W = 460, H = 560;
+
+// ── Audio ──────────────────────────────────────────
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq, type='sine', dur=0.1, vol=0.15, detune=0) {
+  try {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = type; osc.frequency.value = freq;
+    if(detune) osc.detune.value = detune;
+    gain.gain.setValueAtTime(vol, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+    osc.start(); osc.stop(ac.currentTime + dur);
+  } catch(e){}
+}
+function sfxCatch()   { playTone(880,'sine',0.12,0.18); setTimeout(()=>playTone(1100,'sine',0.08,0.12),60); }
+function sfxMiss()    { playTone(180,'sawtooth',0.3,0.2); }
+function sfxLevelUp() { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,'square',0.15,0.15),i*80)); }
+function sfxGameOver(){ [400,300,200,150].forEach((f,i)=>setTimeout(()=>playTone(f,'sawtooth',0.25,0.2),i*120)); }
+function sfxRotten()  { playTone(150,'sawtooth',0.4,0.25,-200); }
+function sfxStart()   { [440,550,660].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.15,0.15),i*100)); }
+
+// ── Stars background ──────────────────────────────
+const stars = [];
+function initStars() {
+  starsCanvas.width  = window.innerWidth;
+  starsCanvas.height = window.innerHeight;
+  stars.length = 0;
+  for(let i=0;i<160;i++) stars.push({
+    x: Math.random()*starsCanvas.width,
+    y: Math.random()*starsCanvas.height,
+    r: Math.random()*1.8+0.2,
+    a: Math.random(),
+    s: Math.random()*0.008+0.002
+  });
+}
+function drawStars() {
+  sCtx.clearRect(0,0,starsCanvas.width,starsCanvas.height);
+  stars.forEach(s => {
+    s.a += s.s; if(s.a>1||s.a<0) s.s*=-1;
+    sCtx.beginPath();
+    sCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    sCtx.fillStyle = `rgba(255,255,255,${s.a*0.8})`;
+    sCtx.fill();
+  });
+}
+initStars();
+window.addEventListener('resize', initStars);
+setInterval(drawStars, 50);
+
+// ── Game state ────────────────────────────────────
+let state = 'start'; // start | countdown | playing | paused | gameover
+let score, level, missed, caught, highScore, animId;
+let fruits = [], particles = [], clouds = [];
+let spawnTimer, spawnInterval;
+let lastTime = 0;
+let levelBannerTimer = 0;
+
+// ── Cat/basket ────────────────────────────────────
+const CAT = {
+  x: W/2, y: H - 72, w: 80, h: 70,
+  speed: 360, // px/sec
+  vx: 0,
+};
+const BASKET_W = 70, BASKET_H = 22;
+
+// ── Input ─────────────────────────────────────────
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if(e.key === ' ' || e.key === 'Escape') togglePause();
+  e.preventDefault && (e.key.startsWith('Arrow') || e.key===' ') && e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Mobile buttons
+document.getElementById('m-left').addEventListener('touchstart',  e=>{keys['ArrowLeft']=true;e.preventDefault();},{passive:false});
+document.getElementById('m-left').addEventListener('touchend',    ()=>{keys['ArrowLeft']=false;});
+document.getElementById('m-right').addEventListener('touchstart', e=>{keys['ArrowRight']=true;e.preventDefault();},{passive:false});
+document.getElementById('m-right').addEventListener('touchend',   ()=>{keys['ArrowRight']=false;});
+
+// Pause button
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+document.getElementById('resume-btn').addEventListener('click', togglePause);
+
+// ── Fruit definitions ─────────────────────────────
+const FRUITS = [
+  { emoji:'🍎', label:'apple',      pts:10, rotten:false },
+  { emoji:'🍌', label:'banana',     pts:10, rotten:false },
+  { emoji:'🍊', label:'orange',     pts:10, rotten:false },
+  { emoji:'🍓', label:'strawberry', pts:15, rotten:false },
+  { emoji:'🍇', label:'grapes',     pts:20, rotten:false },
+  { emoji:'🍑', label:'peach',      pts:15, rotten:false },
+  { emoji:'🍍', label:'pineapple',  pts:25, rotten:false },
+  { emoji:'🍒', label:'cherry',     pts:20, rotten:false },
+];
+const ROTTEN = { emoji:'🤢', label:'rotten', pts:0, rotten:true };
+
+function randomFruit() {
+  if(Math.random() < 0.10 + level*0.01) return {...ROTTEN};
+  return {...FRUITS[Math.floor(Math.random()*FRUITS.length)]};
+}
+
+// ── Cloud definitions ─────────────────────────────
+function initClouds() {
+  clouds = Array.from({length:5}, (_,i) => ({
+    x: Math.random()*W, y: 30+Math.random()*100,
+    w: 60+Math.random()*60, speed: 8+Math.random()*12, alpha: 0.06+Math.random()*0.06
+  }));
+}
+
+// ── Spawn fruit ──────────────────────────────────
+function spawnFruit() {
+  const f = randomFruit();
+  const size = 28 + Math.random()*14;
+  f.x = size/2 + Math.random()*(W - size);
+  f.y = -size;
+  f.size = size;
+  f.vy = (120 + level*22) * (0.8 + Math.random()*0.4); // px/sec
+  f.rotation = Math.random()*Math.PI*2;
+  f.rotSpeed = (Math.random()-0.5)*3;
+  f.wobble = Math.random()*Math.PI*2;
+  f.wobbleSpeed = 0.8 + Math.random()*1.2;
+  f.wobbleAmp  = 18 + Math.random()*24;
+  fruits.push(f);
+}
+
+function resetSpawnInterval() {
+  clearInterval(spawnTimer);
+  spawnInterval = Math.max(500, 1400 - level*80);
+  spawnTimer = setInterval(spawnFruit, spawnInterval);
+}
+
+// ── Catch particle ────────────────────────────────
+function spawnParticle(x, y, text, color='#ffd700') {
+  const el = document.createElement('div');
+  el.className = 'catch-pop';
+  el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  el.style.color = color;
+  gameWrap.appendChild(el);
+  setTimeout(()=>el.remove(), 850);
+}
+
+// ── Draw cat ──────────────────────────────────────
+function drawCat(x, y) {
+  const cx = x, cy = y;
+  ctx.save();
+
+  // Body shadow
+  ctx.shadowColor = 'rgba(78,205,196,0.3)';
+  ctx.shadowBlur = 18;
+
+  // Body
+  ctx.fillStyle = '#ff9f43';
+  roundRect(ctx, cx-28, cy, 56, 42, 16);
+  ctx.fill();
+
+  // Stripes
+  ctx.fillStyle = 'rgba(200,100,0,0.35)';
+  for(let i=0;i<3;i++) {
+    ctx.fillRect(cx-16+i*10, cy+8, 4, 26);
+  }
+
+  // Belly
+  ctx.fillStyle = '#ffe0b2';
+  roundRect(ctx, cx-14, cy+10, 28, 26, 10);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#ff9f43';
+  ctx.beginPath();
+  ctx.arc(cx, cy-14, 24, 0, Math.PI*2);
+  ctx.fill();
+
+  // Ears
+  ctx.fillStyle = '#ff9f43';
+  drawTriangle(ctx, cx-20, cy-30, cx-10, cy-50, cx-4, cy-28);
+  drawTriangle(ctx, cx+20, cy-30, cx+10, cy-50, cx+4, cy-28);
+  ctx.fillStyle = '#ffb8b8';
+  drawTriangle(ctx, cx-17, cy-32, cx-11, cy-46, cx-6, cy-30);
+  drawTriangle(ctx, cx+17, cy-32, cx+11, cy-46, cx+6, cy-30);
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx-9, cy-16, 7, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+9, cy-16, 7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(cx-8, cy-15, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+10, cy-15, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx-6, cy-17, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+12, cy-17, 1.5, 0, Math.PI*2); ctx.fill();
+
+  // Nose
+  ctx.fillStyle = '#ff6b6b';
+  ctx.beginPath();
+  ctx.arc(cx, cy-11, 3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Whiskers
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.2;
+  [[-1,1],[-1,-0.2],[1,1],[1,-0.2]].forEach(([dx,dy],i) => {
+    const sx = i<2 ? cx-4 : cx+4;
+    ctx.beginPath();
+    ctx.moveTo(sx, cy-11);
+    ctx.lineTo(sx + dx*24, cy-11 + dy*5);
+    ctx.stroke();
+  });
+
+  // Tail
+  ctx.strokeStyle = '#ff9f43';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const tailX = cx + 28;
+  const tailWave = Math.sin(Date.now()*0.003)*12;
+  ctx.moveTo(tailX, cy+30);
+  ctx.quadraticCurveTo(tailX+20, cy+10+tailWave, tailX+10, cy-10+tailWave);
+  ctx.stroke();
+
+  // Paws holding basket
+  ctx.fillStyle = '#ff9f43';
+  ctx.beginPath(); ctx.arc(cx-22, cy+44, 9, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+22, cy+44, 9, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffe0b2';
+  ctx.beginPath(); ctx.arc(cx-22, cy+46, 5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+22, cy+46, 5, 0, Math.PI*2); ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+// ── Draw basket ───────────────────────────────────
+function drawBasket(x, y) {
+  ctx.save();
+  const bx = x - BASKET_W/2, by = y + 40;
+  const bw = BASKET_W, bh = BASKET_H + 8;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(x, by+bh+4, bw/2, 6, 0, 0, Math.PI*2); ctx.fill();
+
+  // Basket body
+  const grad = ctx.createLinearGradient(bx, by, bx, by+bh);
+  grad.addColorStop(0, '#c8860a');
+  grad.addColorStop(1, '#8b5e00');
+  ctx.fillStyle = grad;
+  roundRect(ctx, bx, by, bw, bh, 6);
+  ctx.fill();
+
+  // Weave lines
+  ctx.strokeStyle = 'rgba(255,200,80,0.35)';
+  ctx.lineWidth = 1.5;
+  for(let i=1;i<4;i++) {
+    ctx.beginPath();
+    ctx.moveTo(bx+4, by + (bh/4)*i);
+    ctx.lineTo(bx+bw-4, by + (bh/4)*i);
+    ctx.stroke();
+  }
+  for(let i=1;i<5;i++) {
+    ctx.beginPath();
+    ctx.moveTo(bx + (bw/5)*i, by+2);
+    ctx.lineTo(bx + (bw/5)*i, by+bh-2);
+    ctx.stroke();
+  }
+
+  // Rim highlight
+  ctx.fillStyle = '#e8a020';
+  roundRect(ctx, bx, by, bw, 8, {tl:6,tr:6,bl:0,br:0});
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ── Draw fruit ────────────────────────────────────
+function drawFruit(f) {
+  ctx.save();
+  ctx.translate(f.x, f.y);
+  ctx.rotate(f.rotation);
+  // Glow for rotten
+  if(f.rotten) {
+    ctx.shadowColor = 'rgba(100,200,50,0.7)';
+    ctx.shadowBlur = 20;
+  }
+  ctx.font = `${f.size}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(f.emoji, 0, 0);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+// ── Draw ground ───────────────────────────────────
+function drawGround() {
+  const g = ctx.createLinearGradient(0, H-30, 0, H);
+  g.addColorStop(0, 'rgba(30,100,60,0.4)');
+  g.addColorStop(1, 'rgba(10,50,30,0.2)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, H-24, W, 24);
+
+  // Grass tufts
+  ctx.fillStyle = '#4caf50';
+  for(let i=0;i<W;i+=18) {
+    ctx.beginPath();
+    ctx.moveTo(i, H-24);
+    ctx.lineTo(i+4, H-34);
+    ctx.lineTo(i+9, H-24);
+    ctx.fill();
+  }
+}
+
+// ── Draw clouds ───────────────────────────────────
+function drawClouds(dt) {
+  clouds.forEach(c => {
+    c.x += c.speed * dt;
+    if(c.x > W + c.w) c.x = -c.w;
+    ctx.save();
+    ctx.globalAlpha = c.alpha;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.w/2, 16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x-18, c.y+6, c.w/3.5, 12, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x+20, c.y+4, c.w/3, 14, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+// ── Helpers ───────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r) {
+  if(typeof r === 'number') r = {tl:r,tr:r,bl:r,br:r};
+  ctx.beginPath();
+  ctx.moveTo(x+r.tl, y);
+  ctx.lineTo(x+w-r.tr, y); ctx.arcTo(x+w, y, x+w, y+r.tr, r.tr);
+  ctx.lineTo(x+w, y+h-r.br); ctx.arcTo(x+w, y+h, x+w-r.br, y+h, r.br);
+  ctx.lineTo(x+r.bl, y+h); ctx.arcTo(x, y+h, x, y+h-r.bl, r.bl);
+  ctx.lineTo(x, y+r.tl); ctx.arcTo(x, y, x+r.tl, y, r.tl);
+  ctx.closePath();
+}
+function drawTriangle(ctx, x1,y1,x2,y2,x3,y3) {
+  ctx.beginPath();
+  ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3);
+  ctx.closePath(); ctx.fill();
+}
+
+// ── Collision ─────────────────────────────────────
+function checkCollision(f) {
+  const bx = CAT.x, by = CAT.y + CAT.h - 12; // basket center
+  const half = BASKET_W/2 + f.size/2 - 8;
+  return f.y + f.size/2 >= by && f.y - f.size/2 <= by + BASKET_H
+      && f.x >= CAT.x - half && f.x <= CAT.x + half;
+}
+
+// ── Game logic ────────────────────────────────────
+function initGame() {
+  score = 0; level = 1; missed = 0; caught = 0;
+  fruits = []; particles = [];
+  CAT.x = W/2; CAT.y = H - 72; CAT.vx = 0;
+  highScore = parseInt(localStorage.getItem('catFruitHS') || '0');
+  updateHUD();
+  initClouds();
+}
+
+function updateHUD() {
+  hudScore.textContent  = score;
+  hudLevel.textContent  = level;
+  hudMissed.textContent = missed + '/3';
+  hudBest.textContent   = Math.max(highScore, score);
+}
+
+function levelUp() {
+  level++;
+  sfxLevelUp();
+  resetSpawnInterval();
+  updateHUD();
+  levelBannerTimer = 1800;
+  levelBanner.textContent = `🎉 Level ${level}!`;
+  levelBanner.classList.add('show');
+}
+
+function missedFruit() {
+  missed++;
+  sfxMiss();
+  updateHUD();
+  gameWrap.classList.add('shaking');
+  setTimeout(()=>gameWrap.classList.remove('shaking'), 420);
+  if(missed >= 3) triggerGameOver();
+}
+
+function triggerGameOver() {
+  state = 'gameover';
+  clearInterval(spawnTimer);
+  cancelAnimationFrame(animId);
+  if(score > highScore) { highScore = score; localStorage.setItem('catFruitHS', highScore); }
+  sfxGameOver();
+  document.getElementById('go-score').textContent  = score;
+  document.getElementById('go-best').textContent   = highScore;
+  document.getElementById('go-caught').textContent = caught;
+  showScreen('gameover');
+}
+
+// ── Main loop ─────────────────────────────────────
+function gameLoop(ts) {
+  if(state !== 'playing') return;
+  const dt = Math.min((ts - lastTime)/1000, 0.05);
+  lastTime = ts;
+
+  // ── Update cat ──────────────────────────────────
+  CAT.vx = 0;
+  if(keys['ArrowLeft'])  CAT.vx = -CAT.speed;
+  if(keys['ArrowRight']) CAT.vx =  CAT.speed;
+  CAT.x = Math.max(CAT.w/2, Math.min(W - CAT.w/2, CAT.x + CAT.vx * dt));
+
+  // ── Update fruits ────────────────────────────────
+  const nextFruits = [];
+  for(const f of fruits) {
+    f.y += f.vy * dt;
+    f.rotation += f.rotSpeed * dt;
+    f.wobble += f.wobbleSpeed * dt;
+    f.x += Math.sin(f.wobble) * f.wobbleAmp * dt * 0.4;
+    f.x = Math.max(f.size/2, Math.min(W - f.size/2, f.x));
+
+    if(checkCollision(f)) {
+      if(f.rotten) {
+        sfxRotten();
+        // Treat rotten as 1 miss (not instant gameover — more polished)
+        missed++;
+        spawnParticle(
+          CAT.x * (gameWrap.offsetWidth/W),
+          (CAT.y + 30) * (gameWrap.offsetHeight/H),
+          '☠️ Rotten!', '#a0e050'
+        );
+        updateHUD();
+        gameWrap.classList.add('shaking');
+        setTimeout(()=>gameWrap.classList.remove('shaking'),420);
+        if(missed >= 3) { triggerGameOver(); return; }
+      } else {
+        sfxCatch();
+        score += f.pts * level;
+        caught++;
+        const px = CAT.x * (gameWrap.offsetWidth/W);
+        const py = (CAT.y) * (gameWrap.offsetHeight/H);
+        spawnParticle(px, py, `+${f.pts*level}`);
+        if(caught % 10 === 0) levelUp();
+        updateHUD();
+      }
+    } else if(f.y > H + f.size) {
+      if(!f.rotten) missedFruit();
+      if(state !== 'playing') return;
+    } else {
+      nextFruits.push(f);
+    }
+  }
+  fruits = nextFruits;
+
+  // ── Level banner timer ────────────────────────────
+  if(levelBannerTimer > 0) {
+    levelBannerTimer -= dt*1000;
+    if(levelBannerTimer <= 0) levelBanner.classList.remove('show');
+  }
+
+  // ── Draw ─────────────────────────────────────────
+  draw(dt);
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function draw(dt=0) {
+  ctx.clearRect(0,0,W,H);
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#0d1b4b');
+  sky.addColorStop(0.6,'#0a2744');
+  sky.addColorStop(1,'#0d3b2a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0,0,W,H);
+
+  // Moon
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,240,180,0.9)';
+  ctx.shadowColor = 'rgba(255,240,100,0.5)';
+  ctx.shadowBlur = 30;
+  ctx.beginPath(); ctx.arc(W-60, 60, 28, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#0a2744';
+  ctx.beginPath(); ctx.arc(W-52, 54, 22, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  drawClouds(dt);
+  drawGround();
+
+  fruits.forEach(drawFruit);
+  drawCat(CAT.x, CAT.y);
+  drawBasket(CAT.x, CAT.y);
+}
+
+// ── Screen management ─────────────────────────────
+function showScreen(name) {
+  Object.entries(screens).forEach(([k,el]) => {
+    el.classList.toggle('hidden', k !== name);
+  });
+}
+function hideAllScreens() {
+  Object.values(screens).forEach(el => el.classList.add('hidden'));
+}
+
+// ── Countdown ─────────────────────────────────────
+function startCountdown(cb) {
+  showScreen('countdown');
+  let n = 3;
+  countdownEl.textContent = n;
+  countdownEl.style.animation = 'none'; countdownEl.offsetWidth; countdownEl.style.animation='';
+
+  const tick = setInterval(() => {
+    n--;
+    if(n <= 0) {
+      clearInterval(tick);
+      hideAllScreens();
+      cb();
+    } else {
+      countdownEl.textContent = n;
+      countdownEl.style.animation = 'none'; countdownEl.offsetWidth;
+      countdownEl.style.animation = 'countPop .4s cubic-bezier(.34,1.56,.64,1)';
+      playTone(660,'sine',0.1,0.15);
+    }
+  }, 900);
+  playTone(440,'sine',0.1,0.15);
+}
+
+// ── Start / pause / restart ───────────────────────
+document.getElementById('start-btn').addEventListener('click', () => {
+  sfxStart();
+  initGame();
+  startCountdown(() => {
+    state = 'playing';
+    resetSpawnInterval();
+    lastTime = performance.now();
+    draw(0);
+    animId = requestAnimationFrame(gameLoop);
+  });
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+  sfxStart();
+  initGame();
+  showScreen('countdown');
+  startCountdown(() => {
+    state = 'playing';
+    resetSpawnInterval();
+    lastTime = performance.now();
+    draw(0);
+    animId = requestAnimationFrame(gameLoop);
+  });
+});
+
+function togglePause() {
+  if(state === 'playing') {
+    state = 'paused';
+    clearInterval(spawnTimer);
+    cancelAnimationFrame(animId);
+    showScreen('pause');
+    document.getElementById('pause-btn').textContent = '▶ Resume';
+  } else if(state === 'paused') {
+    state = 'playing';
+    hideAllScreens();
+    resetSpawnInterval();
+    document.getElementById('pause-btn').textContent = '⏸ Pause';
+    lastTime = performance.now();
+    animId = requestAnimationFrame(gameLoop);
+  }
+}
+
+// ── Initial draw ─────────────────────────────────
+initGame();
+initClouds();
+draw(0);
+</script>
+</body>
+</html>
